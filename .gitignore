@@ -1,0 +1,10 @@
+.Rhistory
+.Rproj.user
+.Ruserdata
+.RData
+rsconnect/
+renv/library/
+# if you use renv
+.Rprofile
+deploy.R
+.secrets
