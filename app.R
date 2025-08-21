@@ -15,7 +15,7 @@ rsconnect::writeManifest()
 PIN_NAME  <- "recipes"
 BOARD_DIR <- "data"  # persists within the Posit Cloud project
 
-#dir.create(BOARD_DIR, showWarnings = FALSE, recursive = TRUE)
+dir.create(BOARD_DIR, showWarnings = FALSE, recursive = TRUE)
 board <- board_folder(BOARD_DIR, versioned = TRUE)
 
 empty_recipes <- function() {
@@ -192,7 +192,7 @@ theme <- bs_theme(
 # ---- UI ----
 ui <- navbarPage(
   theme = theme,
-  title = tagList(icon("utensils"), " Recipe Manager (pins storage)"),
+  title = tagList(icon("utensils"), "YUMYUM"),
   header = tagList(
     useShinyjs(),
     # ---- Global CSS ----
@@ -318,7 +318,7 @@ ui <- navbarPage(
       mainPanel(
         # Top toolbar row (sticky)
         div(class = "toolbar",
-            actionButton("gen_menu", "🎲 Spin the wheel!", class = "btn btn-success btn-lg"),
+            actionButton("gen_menu", "🎲 Spin!", class = "btn btn-success btn-lg"),
             tags$div(id = "spin_status", class = "muted"),
             tags$span(class = "badge bg-success", title = "Selected week size", "5 recipes")
         ),
@@ -388,7 +388,10 @@ ui <- navbarPage(
                       placeholder = "lemon, garlic, olive oil, salt, pepper"),
         div(class = "menu-actions",
             actionButton("add", tagList(icon("plus"), "Add Recipe"), class = "btn btn-primary"),
-            actionButton("delete", tagList(icon("trash"), "Delete Selected"), class = "btn btn-danger")
+            actionButton("delete", tagList(icon("trash"), "Delete Selected"), class = "btn btn-danger"),
+            fileInput("upload_file", "Upload Recipes (CSV)", accept = ".csv"),
+            downloadButton("download_all", "Download All Recipes (CSV)", class = "btn btn-outline-secondary")
+            
         ),
         tags$hr()
       ),
@@ -704,6 +707,57 @@ server <- function(input, output, session) {
       }
     }
   )
+  
+  # ---- Download all recipes ----
+  output$download_all <- downloadHandler(
+    filename = function() paste0("all_recipes_", Sys.Date(), ".csv"),
+    content = function(file) {
+      df <- recipes()
+      write_csv(df, file)
+    }
+  )
+  
+  # ---- Upload recipes (merge with existing) ----
+  observeEvent(input$upload_file, {
+    req(input$upload_file)
+    tryCatch({
+      new_data <- read_csv(input$upload_file$datapath, show_col_types = FALSE)
+      
+      # Basic validation: must have at least 'name' column
+      if (!"name" %in% names(new_data)) {
+        showNotification("Invalid file: must contain a 'name' column.", type = "error")
+        return(NULL)
+      }
+      
+      # Normalize columns
+      needed_cols <- c("id","name","link","ingredients","n_ingredients","added_at")
+      for (col in needed_cols) {
+        if (!col %in% names(new_data)) new_data[[col]] <- NA_character_
+      }
+      
+      # Fill missing IDs and timestamps
+      new_data <- new_data %>%
+        mutate(
+          id = ifelse(is.na(id) | !nzchar(id), as.character(Sys.time()), id),
+          added_at = ifelse(is.na(added_at) | !nzchar(added_at),
+                            format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
+                            added_at),
+          n_ingredients = ifelse(is.na(n_ingredients),
+                                 vapply(strsplit(ingredients, ",", fixed = TRUE), length, integer(1)),
+                                 n_ingredients)
+        )
+      
+      # Merge and save
+      combined <- bind_rows(recipes(), new_data) %>%
+        distinct(name, .keep_all = TRUE)
+      recipes(combined)
+      save_recipes(combined)
+      showNotification("Recipes uploaded and merged successfully.", type = "message")
+    }, error = function(e) {
+      showNotification(paste("Upload failed:", e$message), type = "error")
+    })
+  })
+  
 }
 
 shinyApp(ui, server)
