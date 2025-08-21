@@ -11,6 +11,24 @@ library(shinyjs)
 
 rsconnect::writeManifest()
 
+
+normalize_recipes_df <- function(df_in) {
+  # Ensure we only work with known columns, create any missing
+  needed <- c("id","name","link","ingredients","n_ingredients","added_at")
+  for (nm in needed) if (!nm %in% names(df_in)) df_in[[nm]] <- NA
+  
+  # Keep only expected columns and coerce types
+  out <- tibble::tibble(
+    id            = as.character(df_in$id),
+    name          = as.character(df_in$name),
+    link          = as.character(df_in$link),
+    ingredients   = as.character(df_in$ingredients),
+    n_ingredients = suppressWarnings(as.integer(df_in$n_ingredients)),
+    added_at      = as.character(df_in$added_at)
+  )
+}
+  
+
 # ------------- Storage via pins (local folder board) ----------------
 PIN_NAME  <- "recipes"
 BOARD_DIR <- "data"  # persists within the Posit Cloud project
@@ -708,55 +726,60 @@ server <- function(input, output, session) {
     }
   )
   
-  # ---- Download all recipes ----
+  # ---- Download all recipes (unchanged) ----
   output$download_all <- downloadHandler(
     filename = function() paste0("all_recipes_", Sys.Date(), ".csv"),
     content = function(file) {
       df <- recipes()
-      write_csv(df, file)
+      readr::write_csv(df, file)
     }
   )
   
-  # ---- Upload recipes (merge with existing) ----
+  # ---- Upload recipes (robust to class mismatches) ----
   observeEvent(input$upload_file, {
     req(input$upload_file)
+    
     tryCatch({
-      new_data <- read_csv(input$upload_file$datapath, show_col_types = FALSE)
+      # Read everything as character first to avoid readr's mis-guessing
+      uploaded_raw <- readr::read_csv(
+        input$upload_file$datapath,
+        col_types = readr::cols(.default = readr::col_character()),
+        show_col_types = FALSE,
+        guess_max = 10000
+      )
       
-      # Basic validation: must have at least 'name' column
-      if (!"name" %in% names(new_data)) {
-        showNotification("Invalid file: must contain a 'name' column.", type = "error")
-        return(NULL)
-      }
+      # Coerce to our schema safely
+      normalized <- normalize_recipes_df(uploaded_raw)
+      report <- attr(normalized, "coercion_report", exact = TRUE)
       
-      # Normalize columns
-      needed_cols <- c("id","name","link","ingredients","n_ingredients","added_at")
-      for (col in needed_cols) {
-        if (!col %in% names(new_data)) new_data[[col]] <- NA_character_
-      }
-      
-      # Fill missing IDs and timestamps
-      new_data <- new_data %>%
-        mutate(
-          id = ifelse(is.na(id) | !nzchar(id), as.character(Sys.time()), id),
-          added_at = ifelse(is.na(added_at) | !nzchar(added_at),
-                            format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
-                            added_at),
-          n_ingredients = ifelse(is.na(n_ingredients),
-                                 vapply(strsplit(ingredients, ",", fixed = TRUE), length, integer(1)),
-                                 n_ingredients)
+      # Merge into current data; prefer uploaded rows on name collisions
+      # (requires dplyr >= 1.1; if older, fall back to distinct by name)
+      if (utils::packageVersion("dplyr") >= "1.1.0") {
+        combined <- dplyr::rows_upsert(recipes(), normalized, by = "name")
+      } else {
+        combined <- dplyr::bind_rows(
+          recipes() %>% dplyr::anti_join(normalized, by = "name"),
+          normalized
         )
+      }
       
-      # Merge and save
-      combined <- bind_rows(recipes(), new_data) %>%
-        distinct(name, .keep_all = TRUE)
+      # Persist + refresh
       recipes(combined)
       save_recipes(combined)
-      showNotification("Recipes uploaded and merged successfully.", type = "message")
+      
+      # User feedback
+      msg <- glue::glue(
+        "Upload complete: {nrow(normalized)} row(s). ",
+        "IDs generated: {report$generated_ids}; ",
+        "n_ingredients fixed: {report$fixed_n_ingredients}."
+      )
+      showNotification(msg, type = "message", duration = 6)
+      
     }, error = function(e) {
-      showNotification(paste("Upload failed:", e$message), type = "error")
+      showNotification(paste("Upload failed:", e$message), type = "error", duration = 8)
     })
   })
+  
   
 }
 
