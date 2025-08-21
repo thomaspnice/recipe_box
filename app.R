@@ -6,11 +6,12 @@ library(readr)
 library(stringr)
 library(htmltools)
 library(tibble)
-library(pins)
+library(httr)
+library(jsonlite)
 library(shinyjs)
+library(base64enc)
 
 rsconnect::writeManifest()
-
 
 normalize_recipes_df <- function(df_in) {
   # Ensure we only work with known columns, create any missing
@@ -19,7 +20,7 @@ normalize_recipes_df <- function(df_in) {
   
   # Keep only expected columns and coerce types
   out <- tibble::tibble(
-    id            = as.character(df_in$id),
+    #id            = as.character(df_in$id),
     name          = as.character(df_in$name),
     link          = as.character(df_in$link),
     ingredients   = as.character(df_in$ingredients),
@@ -27,18 +28,80 @@ normalize_recipes_df <- function(df_in) {
     added_at      = as.character(df_in$added_at)
   )
 }
+
+# ------------- Storage via GitHub ----------------
+GITHUB_OWNER <- "thomaspnice" 
+GITHUB_REPO <- "recipe_box"
+DATA_FILE_PATH <- "data/recipes.csv"
+
+# GitHub API helper functions
+get_github_token <- function() {
+  token <- Sys.getenv("GITHUB_TOKEN")
+  if (token == "") {
+    stop("GITHUB_TOKEN environment variable not set")
+  }
+  return(token)
+}
+
+# Get file from GitHub (with SHA for updates)
+get_github_file <- function(owner, repo, path, token) {
+  url <- paste0("https://api.github.com/repos/", owner, "/", repo, "/contents/", path)
   
+  response <- GET(
+    url,
+    add_headers(
+      Authorization = paste("token", token),
+      Accept = "application/vnd.github.v3+json"
+    )
+  )
+  
+  if (status_code(response) == 404) {
+    return(NULL)  # File doesn't exist
+  }
+  
+  if (status_code(response) != 200) {
+    stop("Failed to fetch file from GitHub: ", content(response, "text"))
+  }
+  
+  content(response)
+}
 
-# ------------- Storage via pins (local folder board) ----------------
-PIN_NAME  <- "recipes"
-BOARD_DIR <- "data"  # persists within the Posit Cloud project
-
-dir.create(BOARD_DIR, showWarnings = FALSE, recursive = TRUE)
-board <- board_folder(BOARD_DIR, versioned = TRUE)
+# Update/create file on GitHub
+put_github_file <- function(owner, repo, path, content_data, message, token, sha = NULL) {
+  url <- paste0("https://api.github.com/repos/", owner, "/", repo, "/contents/", path)
+  
+  # Encode content as base64
+  encoded_content <- base64enc::base64encode(charToRaw(content_data))
+  
+  body <- list(
+    message = message,
+    content = encoded_content
+  )
+  
+  if (!is.null(sha)) {
+    body$sha <- sha
+  }
+  
+  response <- PUT(
+    url,
+    add_headers(
+      Authorization = paste("token", token),
+      Accept = "application/vnd.github.v3+json"
+    ),
+    body = body,
+    encode = "json"
+  )
+  
+  if (!status_code(response) %in% c(200, 201)) {
+    stop("Failed to update file on GitHub: ", content(response, "text"))
+  }
+  
+  content(response)
+}
 
 empty_recipes <- function() {
   tibble(
-    id            = character(),
+    #id            = character(),
     name          = character(),
     link          = character(),
     ingredients   = character(),
@@ -47,36 +110,73 @@ empty_recipes <- function() {
   )
 }
 
-# Load recipes from pin
+# Load recipes from GitHub
 load_recipes <- function() {
-  if (pin_exists(board, PIN_NAME)) {
-    df <- pin_read(board, PIN_NAME)
+  tryCatch({
+    token <- get_github_token()
+    file_info <- get_github_file(GITHUB_OWNER, GITHUB_REPO, DATA_FILE_PATH, token)
+    
+    if (is.null(file_info)) {
+      return(empty_recipes())
+    }
+    
+    # Decode base64 content
+    content_decoded <- rawToChar(base64enc::base64decode(file_info$content))
+    
+    # Parse CSV
+    df <- read_csv(content_decoded, show_col_types = FALSE)
     df <- as_tibble(df)
-  } else {
-    df <- empty_recipes()
-  }
-  df %>%
-    mutate(
-      added_at      = as.character(added_at),
-      n_ingredients = as.integer(n_ingredients)
-    )
+    
+    df %>%
+      mutate(
+        added_at      = as.character(added_at),
+        n_ingredients = as.integer(n_ingredients)
+      )
+  }, error = function(e) {
+    warning("Failed to load from GitHub: ", e$message)
+    return(empty_recipes())
+  })
 }
 
-# Save recipes to pin (CSV artifact, with versions)
+# Save recipes to GitHub
 save_recipes <- function(df) {
-  df <- df %>%
-    mutate(
-      added_at      = as.character(added_at),
-      n_ingredients = as.integer(n_ingredients)
+  tryCatch({
+    token <- get_github_token()
+    
+    # Get current file info to get SHA (required for updates)
+    file_info <- get_github_file(GITHUB_OWNER, GITHUB_REPO, DATA_FILE_PATH, token)
+    current_sha <- if (!is.null(file_info)) file_info$sha else NULL
+    
+    # Prepare data
+    df_clean <- df %>%
+      mutate(
+        added_at      = as.character(added_at),
+        n_ingredients = as.integer(n_ingredients)
+      )
+    
+    # Convert to CSV string
+    csv_content <- format_csv(df_clean)
+    
+    # Commit message
+    timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+    message <- paste("Update recipes data -", timestamp)
+    
+    # Upload to GitHub
+    put_github_file(
+      GITHUB_OWNER, 
+      GITHUB_REPO, 
+      DATA_FILE_PATH, 
+      csv_content, 
+      message, 
+      token, 
+      current_sha
     )
-  pin_write(
-    board,
-    df,
-    name        = PIN_NAME,
-    type        = "csv",
-    title       = "Recipe Manager data",
-    description = "Data for Shiny Recipe Manager (stored via pins)"
-  )
+    
+    return(TRUE)
+  }, error = function(e) {
+    warning("Failed to save to GitHub: ", e$message)
+    return(FALSE)
+  })
 }
 
 # ---- Helper: ingredient tokenization & constrained sampling --------
@@ -188,7 +288,7 @@ sample_with_constraints <- function(df, k = 5L, must_have = "", max_per_token = 
 
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
-# ---- UI ----
+# ---- UI (unchanged from original) ----
 library(shiny)
 library(bslib)
 library(shinyjs)
@@ -318,7 +418,7 @@ ui <- navbarPage(
       });
     "))
   ),
-
+  
   # ---------------- TAB 1: Weekly Menu ----------------
   tabPanel(
     "Weekly Menu",
@@ -329,8 +429,11 @@ ui <- navbarPage(
         textInput("must_have", "Use this ingredient", placeholder = "e.g., tofu, spinach, chickpeas"),
         helpText("Will include at least one recipe containing this ingredient (if available), and avoid using any single ingredient more than 3 times across the menu."),
         tags$hr(),
-        # Room for future inputs if you want (e.g., number of recipes, exclude list)
-        #div(class = "muted", icon("lightbulb"), " Tip: Try keywords like 'chicken', 'spinach', 'chickpea'."),
+        # GitHub sync button
+        div(class = "menu-actions",
+            actionButton("sync_github", tagList(icon("sync"), "Sync with GitHub"), class = "btn btn-info btn-sm"),
+            div(id = "sync_status", class = "muted")
+        ),
         width = 3
       ),
       mainPanel(
@@ -340,59 +443,47 @@ ui <- navbarPage(
             tags$div(id = "spin_status", class = "muted"),
             tags$span(class = "badge bg-success", title = "Selected week size", "5 recipes")
         ),
-
+        
         # Wheel + CTA
         br(),
         div(class = "wheel-wrap",
             div(id = "wheel-container",
                 div(id = "wheel-indicator"),
                 div(id = "wheel", `data-selected` = "Spin!")
-            )#,
-            # div(
-            #   tags$div(class = "muted",
-            #            icon("info-circle"),
-            #            " The wheel is purely visual fun. The selected slice doesn't map to a specific recipe — your server picks the best set and can set the center label."
-            #   ),
-            #   br(),
-            #   tags$div(class = "muted",
-            #            icon("magic"),
-            #            " Server can update the center label with the chosen 'headline' recipe using ",
-            #            tags$code("session$sendCustomMessage('set-wheel-label', 'Creamy Pesto Pasta')"), "."
-            #   )
-            # )
+            )
         ),
-
+        
         tags$hr(),
-
+        
         # Cards + Table tabs
         tabsetPanel(type = "pills",
-          tabPanel(
-            "Cards",
-            br(),
-            div(class = "grid",
-                # Server populates this via output$menu_cards
-                uiOutput("menu_cards")
-            ),
-            br(),
-            downloadButton("download_menu", "Download Menu (CSV)", class = "btn btn-outline-primary")
-          ),
-          tabPanel(
-            "Table",
-            br(),
-            div(class = "soft-card", style = "padding:10px",
-                div(class = "muted", icon("table"), " Original table view"),
-                br(),
-                DTOutput("menu"),
-                br(),
-                downloadButton("download_menu_table", "Download (CSV)", class = "btn btn-outline-secondary")
-            )
-          )
+                    tabPanel(
+                      "Cards",
+                      br(),
+                      div(class = "grid",
+                          # Server populates this via output$menu_cards
+                          uiOutput("menu_cards")
+                      ),
+                      br(),
+                      downloadButton("download_menu", "Download Menu (CSV)", class = "btn btn-outline-primary")
+                    ),
+                    tabPanel(
+                      "Table",
+                      br(),
+                      div(class = "soft-card", style = "padding:10px",
+                          div(class = "muted", icon("table"), " Original table view"),
+                          br(),
+                          DTOutput("menu"),
+                          br(),
+                          downloadButton("download_menu_table", "Download (CSV)", class = "btn btn-outline-secondary")
+                      )
+                    )
         ),
         width = 9
       )
     )
   ),
-
+  
   # --------------- TAB 2: All Recipes -----------------
   tabPanel(
     "All Recipes",
@@ -409,7 +500,6 @@ ui <- navbarPage(
             actionButton("delete", tagList(icon("trash"), "Delete Selected"), class = "btn btn-danger"),
             fileInput("upload_file", "Upload Recipes (CSV)", accept = ".csv"),
             downloadButton("download_all", "Download All Recipes (CSV)", class = "btn btn-outline-secondary")
-            
         ),
         tags$hr()
       ),
@@ -426,11 +516,30 @@ ui <- navbarPage(
   )
 )
 
-
 # ---- Server ----
 server <- function(input, output, session) {
   # Load existing data
   recipes <- reactiveVal(load_recipes())
+  
+  # ------ Sync with GitHub ------
+  observeEvent(input$sync_github, {
+    shinyjs::html(id = "sync_status", html = "Syncing with GitHub...")
+    
+    tryCatch({
+      new_data <- load_recipes()
+      recipes(new_data)
+      shinyjs::html(id = "sync_status", html = "✓ Synced successfully")
+      showNotification("Data synced from GitHub", type = "message")
+    }, error = function(e) {
+      shinyjs::html(id = "sync_status", html = "✗ Sync failed")
+      showNotification(paste("Sync failed:", e$message), type = "error")
+    })
+    
+    # Clear status after 3 seconds
+    shinyjs::delay(3000, {
+      shinyjs::html(id = "sync_status", html = "")
+    })
+  })
   
   # ------ Add new recipe (All Recipes tab) ------
   observeEvent(input$add, {
@@ -456,8 +565,14 @@ server <- function(input, output, session) {
     
     updated <- bind_rows(recipes(), new_row)
     recipes(updated)
-    save_recipes(updated)
-    showNotification("Recipe added.", type = "message")
+    
+    # Save to GitHub
+    if (save_recipes(updated)) {
+      showNotification("Recipe added and saved to GitHub.", type = "message")
+    } else {
+      showNotification("Recipe added locally, but failed to save to GitHub.", type = "warning")
+    }
+    
     updateTextInput(session, "name", value = "")
     updateTextInput(session, "link", value = "")
     updateTextAreaInput(session, "ingredients", value = "")
@@ -506,7 +621,13 @@ server <- function(input, output, session) {
     }
     
     recipes(df)
-    save_recipes(df)
+    
+    # Save to GitHub
+    if (save_recipes(df)) {
+      showNotification("Changes saved to GitHub.", type = "message")
+    } else {
+      showNotification("Changes saved locally, but failed to sync to GitHub.", type = "warning")
+    }
   })
   
   observeEvent(input$delete, {
@@ -518,8 +639,13 @@ server <- function(input, output, session) {
     df <- recipes()
     df <- df[-sel, , drop = FALSE]
     recipes(df)
-    save_recipes(df)
-    showNotification(sprintf("Deleted %d row(s).", length(sel)), type = "message")
+    
+    # Save to GitHub
+    if (save_recipes(df)) {
+      showNotification(sprintf("Deleted %d row(s) and saved to GitHub.", length(sel)), type = "message")
+    } else {
+      showNotification(sprintf("Deleted %d row(s) locally, but failed to sync to GitHub.", length(sel)), type = "warning")
+    }
   })
   
   # ------- Weekly Menu Feature (with constraints) -------
@@ -586,7 +712,7 @@ server <- function(input, output, session) {
           )
         } else if (!any(vapply(df_tokens$tokens[idx], contains_must_have, logical(1), must_have = must))) {
           showNotification(
-            paste0("Couldn’t satisfy all constraints with '", must, "'. Relaxed ingredient cap to complete the menu."),
+            paste0("Couldn't satisfy all constraints with '", must, "'. Relaxed ingredient cap to complete the menu."),
             type = "message", duration = 6
           )
         }
@@ -594,7 +720,8 @@ server <- function(input, output, session) {
       
       # --- Cards (raw link) ---
       df_cards <- df_tokens[idx, , drop = FALSE] %>%
-        select(name, link, ingredients, as.numeric(n_ingredients))
+        select(name, link, ingredients, n_ingredients) %>%
+        mutate(n_ingredients = as.numeric(n_ingredients))
       
       # --- Table (HTML link) ---
       df_disp <- df_tokens[idx, , drop = FALSE] %>%
@@ -664,7 +791,7 @@ server <- function(input, output, session) {
                         } else {
                           tags$span(class = "muted", icon("link"), " No link provided")
                         },
-                        tags$span(class = "muted", icon("utensils"), paste0(df$n_ingredients[i], " item(s)"))
+                        tags$span(class = "muted", icon("utensils"))
                )
       )
     })
@@ -765,22 +892,18 @@ server <- function(input, output, session) {
       
       # Persist + refresh
       recipes(combined)
-      save_recipes(combined)
       
-      # User feedback
-      msg <- glue::glue(
-        "Upload complete: {nrow(normalized)} row(s). ",
-        "IDs generated: {report$generated_ids}; ",
-        "n_ingredients fixed: {report$fixed_n_ingredients}."
-      )
-      showNotification(msg, type = "message", duration = 6)
+      # Save to GitHub
+      if (save_recipes(combined)) {
+        showNotification("Upload complete and saved to GitHub.", type = "message", duration = 6)
+      } else {
+        showNotification("Upload complete locally, but failed to save to GitHub.", type = "warning", duration = 6)
+      }
       
     }, error = function(e) {
       showNotification(paste("Upload failed:", e$message), type = "error", duration = 8)
     })
   })
-  
-  
 }
 
 shinyApp(ui, server)
