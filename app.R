@@ -8,6 +8,9 @@ library(htmltools)
 library(tibble)
 library(pins)
 
+rsconnect::writeManifest()
+
+
 # ------------- Storage via pins (local folder board) ----------------
 PIN_NAME  <- "recipes"
 BOARD_DIR <- "data"  # persists within the Posit Cloud project
