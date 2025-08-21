@@ -594,7 +594,7 @@ server <- function(input, output, session) {
       
       # --- Cards (raw link) ---
       df_cards <- df_tokens[idx, , drop = FALSE] %>%
-        select(name, link, ingredients, n_ingredients)
+        select(name, link, ingredients, as.numeric(n_ingredients))
       
       # --- Table (HTML link) ---
       df_disp <- df_tokens[idx, , drop = FALSE] %>%

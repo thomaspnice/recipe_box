@@ -2248,13 +2248,13 @@
       "checksum": "b06af5d33d63df5ef27741910ed44d4e"
     },
     ".Rprofile": {
-      "checksum": "de58ee61d06b0444edb5a1f65b771571"
+      "checksum": "7a2b31245e4a545a6f7d8cbd5f137400"
     },
     ".secrets/c13dc354db9600c8cd9b2bd868d1bf25_thomas.p.nice@gmail.com": {
       "checksum": "274bff9343feb827cffe96aa3fdbe30c"
     },
     "app.R": {
-      "checksum": "bc757b4fb8dad4560a662113500b29e0"
+      "checksum": "115319129f1a96e25726547651c61a9c"
     },
     "data/recipes/20250821T081909Z-43eb5/data.txt": {
       "checksum": "9e519ac02476b5a12a401af9cc93bff8"
@@ -2285,6 +2285,12 @@
     },
     "data/recipes/20250821T090845Z-d15ab/recipes.csv": {
       "checksum": "c6990a28112542ab2539854bf5e9583c"
+    },
+    "data/recipes/20250821T110236Z-dd0e0/data.txt": {
+      "checksum": "9a2599c39995f7cd375aa250768f0f2f"
+    },
+    "data/recipes/20250821T110236Z-dd0e0/recipes.csv": {
+      "checksum": "efdb5ac691025ce1ff8f523a81e6adac"
     },
     "deploy.R": {
       "checksum": "7c3ff30caef32a4654f2a0127328ef88"
