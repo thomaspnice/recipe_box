@@ -19,7 +19,7 @@ normalize_recipes_df <- function(df_in) {
   
   # Keep only expected columns and coerce types
   out <- tibble::tibble(
-    id            = as.character(df_in$id),
+    #id            = as.character(df_in$id),
     name          = as.character(df_in$name),
     link          = as.character(df_in$link),
     ingredients   = as.character(df_in$ingredients),
@@ -27,7 +27,7 @@ normalize_recipes_df <- function(df_in) {
     added_at      = as.character(df_in$added_at)
   )
 }
-  
+
 
 # ------------- Storage via pins (local folder board) ----------------
 PIN_NAME  <- "recipes"
@@ -38,7 +38,7 @@ board <- board_folder(BOARD_DIR, versioned = TRUE)
 
 empty_recipes <- function() {
   tibble(
-    id            = character(),
+    #id            = character(),
     name          = character(),
     link          = character(),
     ingredients   = character(),
@@ -318,7 +318,7 @@ ui <- navbarPage(
       });
     "))
   ),
-
+  
   # ---------------- TAB 1: Weekly Menu ----------------
   tabPanel(
     "Weekly Menu",
@@ -340,7 +340,7 @@ ui <- navbarPage(
             tags$div(id = "spin_status", class = "muted"),
             tags$span(class = "badge bg-success", title = "Selected week size", "5 recipes")
         ),
-
+        
         # Wheel + CTA
         br(),
         div(class = "wheel-wrap",
@@ -361,38 +361,38 @@ ui <- navbarPage(
             #   )
             # )
         ),
-
+        
         tags$hr(),
-
+        
         # Cards + Table tabs
         tabsetPanel(type = "pills",
-          tabPanel(
-            "Cards",
-            br(),
-            div(class = "grid",
-                # Server populates this via output$menu_cards
-                uiOutput("menu_cards")
-            ),
-            br(),
-            downloadButton("download_menu", "Download Menu (CSV)", class = "btn btn-outline-primary")
-          ),
-          tabPanel(
-            "Table",
-            br(),
-            div(class = "soft-card", style = "padding:10px",
-                div(class = "muted", icon("table"), " Original table view"),
-                br(),
-                DTOutput("menu"),
-                br(),
-                downloadButton("download_menu_table", "Download (CSV)", class = "btn btn-outline-secondary")
-            )
-          )
+                    tabPanel(
+                      "Cards",
+                      br(),
+                      div(class = "grid",
+                          # Server populates this via output$menu_cards
+                          uiOutput("menu_cards")
+                      ),
+                      br(),
+                      downloadButton("download_menu", "Download Menu (CSV)", class = "btn btn-outline-primary")
+                    ),
+                    tabPanel(
+                      "Table",
+                      br(),
+                      div(class = "soft-card", style = "padding:10px",
+                          div(class = "muted", icon("table"), " Original table view"),
+                          br(),
+                          DTOutput("menu"),
+                          br(),
+                          downloadButton("download_menu_table", "Download (CSV)", class = "btn btn-outline-secondary")
+                      )
+                    )
         ),
         width = 9
       )
     )
   ),
-
+  
   # --------------- TAB 2: All Recipes -----------------
   tabPanel(
     "All Recipes",
@@ -594,7 +594,8 @@ server <- function(input, output, session) {
       
       # --- Cards (raw link) ---
       df_cards <- df_tokens[idx, , drop = FALSE] %>%
-        select(name, link, ingredients, as.numeric(n_ingredients))
+        select(name, link, ingredients, n_ingredients) %>%
+        mutate(n_ingredients = as.numeric(n_ingredients))
       
       # --- Table (HTML link) ---
       df_disp <- df_tokens[idx, , drop = FALSE] %>%
@@ -664,7 +665,7 @@ server <- function(input, output, session) {
                         } else {
                           tags$span(class = "muted", icon("link"), " No link provided")
                         },
-                        tags$span(class = "muted", icon("utensils"), paste0(df$n_ingredients[i], " item(s)"))
+                        tags$span(class = "muted", icon("utensils"))
                )
       )
     })
