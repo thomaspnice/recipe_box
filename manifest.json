@@ -2248,13 +2248,13 @@
       "checksum": "b06af5d33d63df5ef27741910ed44d4e"
     },
     ".Rprofile": {
-      "checksum": "95e732c3cbcf5886127f72ddefcd110d"
+      "checksum": "3891fb4d630a13abc5d274f16b87eb78"
     },
     ".secrets/c13dc354db9600c8cd9b2bd868d1bf25_thomas.p.nice@gmail.com": {
       "checksum": "274bff9343feb827cffe96aa3fdbe30c"
     },
     "app.R": {
-      "checksum": "f10b4d422abf801ef69b552b8962ab5e"
+      "checksum": "a14c68d4d4d943ae7ee30e2b239f8540"
     },
     "data/recipes/20250821T081909Z-43eb5/data.txt": {
       "checksum": "9e519ac02476b5a12a401af9cc93bff8"
@@ -2273,6 +2273,18 @@
     },
     "data/recipes/20250821T090152Z-43eb5/recipes.csv": {
       "checksum": "59302bda0543d10a9562cb66c46b6c07"
+    },
+    "data/recipes/20250821T090837Z-7a7ef/data.txt": {
+      "checksum": "2adb5b8119c32dddbf73d051241294dc"
+    },
+    "data/recipes/20250821T090837Z-7a7ef/recipes.csv": {
+      "checksum": "ef9fdf82827a85b16fbecea91db73270"
+    },
+    "data/recipes/20250821T090845Z-d15ab/data.txt": {
+      "checksum": "c704760b985f987816ab1d9408a53495"
+    },
+    "data/recipes/20250821T090845Z-d15ab/recipes.csv": {
+      "checksum": "c6990a28112542ab2539854bf5e9583c"
     },
     "deploy.R": {
       "checksum": "7c3ff30caef32a4654f2a0127328ef88"

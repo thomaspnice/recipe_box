@@ -15,7 +15,7 @@ rsconnect::writeManifest()
 PIN_NAME  <- "recipes"
 BOARD_DIR <- "data"  # persists within the Posit Cloud project
 
-dir.create(BOARD_DIR, showWarnings = FALSE, recursive = TRUE)
+#dir.create(BOARD_DIR, showWarnings = FALSE, recursive = TRUE)
 board <- board_folder(BOARD_DIR, versioned = TRUE)
 
 empty_recipes <- function() {
@@ -308,17 +308,17 @@ ui <- navbarPage(
       sidebarPanel(
         class = "soft-card",
         tags$h5(icon("calendar-week"), " Weekly Menu Options"),
-        textInput("must_have", "Use this ingredient", placeholder = "e.g., chicken"),
-        helpText("We’ll include at least one recipe containing this ingredient (if available), and avoid using any single ingredient more than 3 times across the menu."),
+        textInput("must_have", "Use this ingredient", placeholder = "e.g., tofu, spinach, chickpeas"),
+        helpText("Will include at least one recipe containing this ingredient (if available), and avoid using any single ingredient more than 3 times across the menu."),
         tags$hr(),
         # Room for future inputs if you want (e.g., number of recipes, exclude list)
-        div(class = "muted", icon("lightbulb"), " Tip: Try keywords like 'chicken', 'spinach', 'chickpea'."),
+        #div(class = "muted", icon("lightbulb"), " Tip: Try keywords like 'chicken', 'spinach', 'chickpea'."),
         width = 3
       ),
       mainPanel(
         # Top toolbar row (sticky)
         div(class = "toolbar",
-            actionButton("gen_menu", "🎲 Spin & Generate Weekly Menu (5 recipes)", class = "btn btn-success btn-lg"),
+            actionButton("gen_menu", "🎲 Spin the wheel!", class = "btn btn-success btn-lg"),
             tags$div(id = "spin_status", class = "muted"),
             tags$span(class = "badge bg-success", title = "Selected week size", "5 recipes")
         ),
@@ -329,51 +329,51 @@ ui <- navbarPage(
             div(id = "wheel-container",
                 div(id = "wheel-indicator"),
                 div(id = "wheel", `data-selected` = "Spin!")
-            ),
-            div(
-              tags$div(class = "muted",
-                       icon("info-circle"),
-                       " The wheel is purely visual fun. The selected slice doesn't map to a specific recipe — your server picks the best set and can set the center label."
-              ),
-              br(),
-              tags$div(class = "muted",
-                       icon("magic"),
-                       " Server can update the center label with the chosen 'headline' recipe using ",
-                       tags$code("session$sendCustomMessage('set-wheel-label', 'Creamy Pesto Pasta')"), "."
-              )
-            )
+            )#,
+            # div(
+            #   tags$div(class = "muted",
+            #            icon("info-circle"),
+            #            " The wheel is purely visual fun. The selected slice doesn't map to a specific recipe — your server picks the best set and can set the center label."
+            #   ),
+            #   br(),
+            #   tags$div(class = "muted",
+            #            icon("magic"),
+            #            " Server can update the center label with the chosen 'headline' recipe using ",
+            #            tags$code("session$sendCustomMessage('set-wheel-label', 'Creamy Pesto Pasta')"), "."
+            #   )
+            # )
         ),
 
         tags$hr(),
 
-  #       # Cards + Table tabs
-  #       tabsetPanel(type = "pills",
-  #         tabPanel(
-  #           "Cards",
-  #           br(),
-  #           div(class = "grid",
-  #               # Server populates this via output$menu_cards
-  #               uiOutput("menu_cards")
-  #           ),
-  #           br(),
-  #           downloadButton("download_menu", "Download Menu (CSV)", class = "btn btn-outline-primary")
-  #         ),
-  #         tabPanel(
-  #           "Table",
-  #           br(),
-  #           div(class = "soft-card", style = "padding:10px",
-  #               div(class = "muted", icon("table"), " Original table view"),
-  #               br(),
-  #               DTOutput("menu"),
-  #               br(),
-  #               downloadButton("download_menu_table", "Download (CSV)", class = "btn btn-outline-secondary")
-  #           )
-  #         )
-  #       ),
-  #       width = 9
-  #     )
-  #   )
-  # ),
+        # Cards + Table tabs
+        tabsetPanel(type = "pills",
+          tabPanel(
+            "Cards",
+            br(),
+            div(class = "grid",
+                # Server populates this via output$menu_cards
+                uiOutput("menu_cards")
+            ),
+            br(),
+            downloadButton("download_menu", "Download Menu (CSV)", class = "btn btn-outline-primary")
+          ),
+          tabPanel(
+            "Table",
+            br(),
+            div(class = "soft-card", style = "padding:10px",
+                div(class = "muted", icon("table"), " Original table view"),
+                br(),
+                DTOutput("menu"),
+                br(),
+                downloadButton("download_menu_table", "Download (CSV)", class = "btn btn-outline-secondary")
+            )
+          )
+        ),
+        width = 9
+      )
+    )
+  ),
 
   # --------------- TAB 2: All Recipes -----------------
   tabPanel(
@@ -382,10 +382,10 @@ ui <- navbarPage(
       sidebarPanel(
         class = "soft-card",
         tags$h5(icon("book"), " Recipe Editor"),
-        textInput("name", "Recipe name", placeholder = "e.g., Lemon Garlic Chicken"),
+        textInput("name", "Recipe name", placeholder = "e.g., Kartoffelbrei"),
         textInput("link", "Link", placeholder = "https://..."),
         textAreaInput("ingredients", "Ingredients (comma-separated)", height = "120px",
-                      placeholder = "chicken, lemon, garlic, olive oil, salt, pepper"),
+                      placeholder = "lemon, garlic, olive oil, salt, pepper"),
         div(class = "menu-actions",
             actionButton("add", tagList(icon("plus"), "Add Recipe"), class = "btn btn-primary"),
             actionButton("delete", tagList(icon("trash"), "Delete Selected"), class = "btn btn-danger")
@@ -606,7 +606,7 @@ server <- function(input, output, session) {
   output$menu_cards <- renderUI({
     df <- weekly_menu_cards()
     if (nrow(df) == 0) {
-      return(tags$div(class = "muted", "No menu generated yet. Click “Spin & Generate Weekly Menu”."))
+      return(tags$div(class = "muted", "No menu generated yet."))
     }
     
     # helper: split ingredients into neat chips
