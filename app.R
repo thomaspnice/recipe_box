@@ -15,23 +15,25 @@ rsconnect::writeManifest()
 normalize_recipes_df <- function(df_in) {
   # Ensure we only work with known columns, create any missing
   needed <- c("id","name","link","ingredients","n_ingredients","added_at")
-  for (nm in needed) if (!nm %in% names(df_in)) df_in[[nm]] <- NA
+  for (nm in needed) if (!nm %in% names(df_in)) df_in[[nm]] <- NA_character_
   
-  # Keep only expected columns and coerce types
+  # Keep only expected columns and coerce types consistently
   out <- tibble::tibble(
-    #id            = as.character(df_in$id),
-    name          = as.character(df_in$name),
-    link          = as.character(df_in$link),
-    ingredients   = as.character(df_in$ingredients),
-    n_ingredients = suppressWarnings(as.integer(df_in$n_ingredients)),
-    added_at      = as.character(df_in$added_at)
+    id            = as.character(df_in$id %||% NA_character_),
+    name          = as.character(df_in$name %||% NA_character_),
+    link          = as.character(df_in$link %||% NA_character_),
+    ingredients   = as.character(df_in$ingredients %||% NA_character_),
+    n_ingredients = as.integer(suppressWarnings(as.numeric(df_in$n_ingredients))),
+    added_at      = as.character(df_in$added_at %||% NA_character_)
   )
+  
+  return(out)
 }
 
 # ------------- Storage via GitHub ----------------
-GITHUB_OWNER <- "thomaspnice" 
-GITHUB_REPO <- "recipe_box"
-DATA_FILE_PATH <- "recipes.csv"
+GITHUB_OWNER <- "your-username"  # CHANGE THIS
+GITHUB_REPO <- "your-repo-name"  # CHANGE THIS
+DATA_FILE_PATH <- "data/recipes.csv"
 
 # GitHub API helper functions
 get_github_token <- function() {
@@ -123,16 +125,16 @@ put_github_file <- function(owner, repo, path, content_data, message, token, sha
 
 empty_recipes <- function() {
   tibble(
-    #id            = character(),
-    name          = character(),
-    link          = character(),
-    ingredients   = character(),
-    n_ingredients = integer(),
-    added_at      = character()
+    id            = character(0),
+    name          = character(0),
+    link          = character(0),
+    ingredients   = character(0),
+    n_ingredients = integer(0),
+    added_at      = character(0)
   )
 }
 
-# Load recipes from GitHub
+# Load recipes from GitHub with consistent data types
 load_recipes <- function() {
   tryCatch({
     token <- get_github_token()
@@ -145,15 +147,25 @@ load_recipes <- function() {
     # Decode base64 content
     content_decoded <- rawToChar(base64enc::base64decode(file_info$content))
     
-    # Parse CSV
-    df <- read_csv(content_decoded, show_col_types = FALSE)
-    df <- as_tibble(df)
+    # Parse CSV with explicit column types to avoid type guessing issues
+    df <- read_csv(
+      content_decoded, 
+      col_types = cols(
+        id = col_character(),
+        name = col_character(),
+        link = col_character(),
+        ingredients = col_character(),
+        n_ingredients = col_integer(),
+        added_at = col_character()
+      ),
+      show_col_types = FALSE
+    )
     
-    df %>%
-      mutate(
-        added_at      = as.character(added_at),
-        n_ingredients = as.integer(n_ingredients)
-      )
+    # Ensure consistent structure using normalize function
+    df <- normalize_recipes_df(df)
+    
+    return(df)
+    
   }, error = function(e) {
     warning("Failed to load from GitHub: ", e$message)
     return(empty_recipes())
@@ -173,16 +185,9 @@ save_recipes <- function(df) {
     current_sha <- if (!is.null(file_info)) file_info$sha else NULL
     
     # Prepare data - ensure all columns exist and are properly typed
-    df_clean <- df %>%
-      mutate(
-        name = as.character(name),
-        link = as.character(link),
-        ingredients = as.character(ingredients),
-        added_at = as.character(added_at),
-        n_ingredients = as.integer(n_ingredients)
-      ) %>%
+    df_clean <- normalize_recipes_df(df) %>%
       # Remove any completely empty rows
-      filter(!is.na(name) | !is.na(ingredients))
+      filter(!is.na(name) & nzchar(trimws(name)))
     
     # Convert to CSV string with proper handling
     csv_content <- paste0(capture.output(write_csv(df_clean, stdout())), collapse = "\n")
@@ -554,8 +559,11 @@ ui <- navbarPage(
 
 # ---- Server ----
 server <- function(input, output, session) {
-  # Load existing data
-  recipes <- reactiveVal(load_recipes())
+  # Load existing data with consistent types
+  recipes <- reactiveVal({
+    initial_data <- load_recipes()
+    normalize_recipes_df(initial_data)
+  })
   
   # ------ Sync with GitHub ------
   observeEvent(input$sync_github, {
@@ -597,15 +605,15 @@ server <- function(input, output, session) {
     
     n_ing <- if (nzchar(ing)) length(strsplit(ing, ",", fixed = TRUE)[[1]]) else 0L
     
-    # Create new row with proper ID generation
+    # Create new row with proper ID generation and consistent types
     current_time <- Sys.time()
     new_row <- tibble(
-      id            = as.character(as.numeric(current_time)),
-      name          = nm,
-      link          = if (nzchar(lnk)) lnk else NA_character_,
-      ingredients   = if (nzchar(ing)) ing else NA_character_,
+      id            = paste0("recipe_", as.numeric(current_time), "_", sample(1000:9999, 1)),
+      name          = as.character(nm),
+      link          = as.character(if (nzchar(lnk)) lnk else NA_character_),
+      ingredients   = as.character(if (nzchar(ing)) ing else NA_character_),
       n_ingredients = as.integer(n_ing),
-      added_at      = format(current_time, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+      added_at      = as.character(format(current_time, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"))
     )
     
     # Show loading state
@@ -613,6 +621,10 @@ server <- function(input, output, session) {
     showNotification("Adding recipe...", type = "message", duration = 2)
     
     tryCatch({
+      # Ensure both datasets have consistent column types before combining
+      current_recipes <- normalize_recipes_df(current_recipes)
+      new_row <- normalize_recipes_df(new_row)
+      
       # Update local state first
       updated <- bind_rows(current_recipes, new_row)
       recipes(updated)
