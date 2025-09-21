@@ -9,7 +9,6 @@ library(tibble)
 library(httr)
 library(jsonlite)
 library(shinyjs)
-library(base64enc)
 
 rsconnect::writeManifest()
 
@@ -32,7 +31,7 @@ normalize_recipes_df <- function(df_in) {
 # ------------- Storage via GitHub ----------------
 GITHUB_OWNER <- "thomaspnice" 
 GITHUB_REPO <- "recipe_box"
-DATA_FILE_PATH <- "data/recipes.csv"
+DATA_FILE_PATH <- "recipes.csv"
 
 # GitHub API helper functions
 get_github_token <- function() {
@@ -66,13 +65,18 @@ get_github_file <- function(owner, repo, path, token) {
   content(response)
 }
 
-
-# Update/create file on GitHub
+# Update/create file on GitHub with better error handling
 put_github_file <- function(owner, repo, path, content_data, message, token, sha = NULL) {
   url <- paste0("https://api.github.com/repos/", owner, "/", repo, "/contents/", path)
   
-  # Encode content as base64
-  encoded_content <- base64enc::base64encode(charToRaw(content_data))
+  # Ensure content is properly encoded
+  if (is.character(content_data)) {
+    # Remove any trailing whitespace/newlines that might cause issues
+    content_data <- trimws(content_data)
+    encoded_content <- base64enc::base64encode(charToRaw(content_data))
+  } else {
+    stop("Content must be character string")
+  }
   
   body <- list(
     message = message,
@@ -87,14 +91,31 @@ put_github_file <- function(owner, repo, path, content_data, message, token, sha
     url,
     add_headers(
       Authorization = paste("token", token),
-      Accept = "application/vnd.github.v3+json"
+      Accept = "application/vnd.github.v3+json",
+      `User-Agent` = "R-Shiny-App"
     ),
     body = body,
-    encode = "json"
+    encode = "json",
+    timeout(30)  # 30 second timeout
   )
   
-  if (!status_code(response) %in% c(200, 201)) {
-    stop("Failed to update file on GitHub: ", content(response, "text"))
+  status <- status_code(response)
+  
+  if (!status %in% c(200, 201)) {
+    response_content <- content(response, "text", encoding = "UTF-8")
+    error_msg <- paste("HTTP", status, ":", response_content)
+    
+    # Parse JSON error if possible
+    tryCatch({
+      error_json <- fromJSON(response_content)
+      if ("message" %in% names(error_json)) {
+        error_msg <- error_json$message
+      }
+    }, error = function(e) {
+      # Keep original error message if JSON parsing fails
+    })
+    
+    stop("Failed to update file on GitHub: ", error_msg)
   }
   
   content(response)
@@ -139,31 +160,39 @@ load_recipes <- function() {
   })
 }
 
-# Save recipes to GitHub
+# Save recipes to GitHub with improved error handling
 save_recipes <- function(df) {
   tryCatch({
     token <- get_github_token()
+    
+    # Add small delay to avoid rapid-fire API calls
+    Sys.sleep(0.5)
     
     # Get current file info to get SHA (required for updates)
     file_info <- get_github_file(GITHUB_OWNER, GITHUB_REPO, DATA_FILE_PATH, token)
     current_sha <- if (!is.null(file_info)) file_info$sha else NULL
     
-    # Prepare data
+    # Prepare data - ensure all columns exist and are properly typed
     df_clean <- df %>%
       mutate(
-        added_at      = as.character(added_at),
+        name = as.character(name),
+        link = as.character(link),
+        ingredients = as.character(ingredients),
+        added_at = as.character(added_at),
         n_ingredients = as.integer(n_ingredients)
-      )
+      ) %>%
+      # Remove any completely empty rows
+      filter(!is.na(name) | !is.na(ingredients))
     
-    # Convert to CSV string
-    csv_content <- format_csv(df_clean)
+    # Convert to CSV string with proper handling
+    csv_content <- paste0(capture.output(write_csv(df_clean, stdout())), collapse = "\n")
     
     # Commit message
-    timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
-    message <- paste("Update recipes data -", timestamp)
+    timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S UTC", tz = "UTC")
+    message <- paste("Update recipes data -", timestamp, "- Total recipes:", nrow(df_clean))
     
     # Upload to GitHub
-    put_github_file(
+    result <- put_github_file(
       GITHUB_OWNER, 
       GITHUB_REPO, 
       DATA_FILE_PATH, 
@@ -175,6 +204,12 @@ save_recipes <- function(df) {
     
     return(TRUE)
   }, error = function(e) {
+    # More detailed error logging
+    cat("GitHub save error:", e$message, "\n")
+    if (exists("df_clean")) {
+      cat("Data being saved - rows:", nrow(df_clean), "cols:", ncol(df_clean), "\n")
+      cat("Column names:", paste(names(df_clean), collapse = ", "), "\n")
+    }
     warning("Failed to save to GitHub: ", e$message)
     return(FALSE)
   })
@@ -542,7 +577,7 @@ server <- function(input, output, session) {
     })
   })
   
-  # ------ Add new recipe (All Recipes tab) ------
+  # ------ Add new recipe (All Recipes tab) with better error handling ------
   observeEvent(input$add, {
     nm  <- trimws(input$name %||% "")
     lnk <- trimws(input$link %||% "")
@@ -553,30 +588,55 @@ server <- function(input, output, session) {
       return(NULL)
     }
     
-    n_ing <- if (nzchar(ing)) length(strsplit(ing, ",", fixed = TRUE)[[1]]) else 0L
-    
-    new_row <- tibble(
-      id            = as.character(Sys.time()),
-      name          = nm,
-      link          = lnk,
-      ingredients   = ing,
-      n_ingredients = as.integer(n_ing),
-      added_at      = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
-    )
-    
-    updated <- bind_rows(recipes(), new_row)
-    recipes(updated)
-    
-    # Save to GitHub
-    if (save_recipes(updated)) {
-      showNotification("Recipe added and saved to GitHub.", type = "message")
-    } else {
-      showNotification("Recipe added locally, but failed to save to GitHub.", type = "warning")
+    # Check for duplicate names
+    current_recipes <- recipes()
+    if (nm %in% current_recipes$name) {
+      showNotification("A recipe with this name already exists.", type = "warning")
+      return(NULL)
     }
     
-    updateTextInput(session, "name", value = "")
-    updateTextInput(session, "link", value = "")
-    updateTextAreaInput(session, "ingredients", value = "")
+    n_ing <- if (nzchar(ing)) length(strsplit(ing, ",", fixed = TRUE)[[1]]) else 0L
+    
+    # Create new row with proper ID generation
+    current_time <- Sys.time()
+    new_row <- tibble(
+      id            = as.character(as.numeric(current_time)),
+      name          = nm,
+      link          = if (nzchar(lnk)) lnk else NA_character_,
+      ingredients   = if (nzchar(ing)) ing else NA_character_,
+      n_ingredients = as.integer(n_ing),
+      added_at      = format(current_time, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+    )
+    
+    # Show loading state
+    shinyjs::disable("add")
+    showNotification("Adding recipe...", type = "message", duration = 2)
+    
+    tryCatch({
+      # Update local state first
+      updated <- bind_rows(current_recipes, new_row)
+      recipes(updated)
+      
+      # Save to GitHub with delay to avoid conflicts
+      Sys.sleep(1)  # Give a moment for any previous operations to complete
+      
+      if (save_recipes(updated)) {
+        showNotification("Recipe added and saved to GitHub.", type = "message")
+        # Clear form only on success
+        updateTextInput(session, "name", value = "")
+        updateTextInput(session, "link", value = "")
+        updateTextAreaInput(session, "ingredients", value = "")
+      } else {
+        showNotification("Recipe added locally, but failed to save to GitHub. Try the 'Sync with GitHub' button.", type = "warning")
+      }
+      
+    }, error = function(e) {
+      # Revert local state on error
+      recipes(current_recipes)
+      showNotification(paste("Failed to add recipe:", e$message), type = "error")
+    }, finally = {
+      shinyjs::enable("add")
+    })
   })
   
   # ------ Inline editing + delete (All Recipes tab) ------
@@ -767,6 +827,7 @@ server <- function(input, output, session) {
     
     # Build a list of card divs
     lapply(seq_len(nrow(df)), function(i) {
+      items <- split_ing(df$ingredients[i])
       link  <- df$link[i]
       has_link <- !is.na(link) && nzchar(trimws(link))
       
