@@ -35,10 +35,10 @@ GITHUB_OWNER <- "thomaspnice"
 GITHUB_REPO <- "recipe_box"
 DATA_FILE_PATH <- "recipes.csv"
 
-
+source(".Renviron")
 # GitHub API helper functions
 get_github_token <- function() {
-  token <- "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"
+  token <- Sys.getenv("GITHUB_TOKEN")
   if (token == "") {
     stop("GITHUB_TOKEN environment variable not set")
   }
