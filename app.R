@@ -31,13 +31,14 @@ normalize_recipes_df <- function(df_in) {
 }
 
 # ------------- Storage via GitHub ----------------
-GITHUB_OWNER <- "your-username"  # CHANGE THIS
-GITHUB_REPO <- "your-repo-name"  # CHANGE THIS
-DATA_FILE_PATH <- "data/recipes.csv"
+GITHUB_OWNER <- "thomaspnice" 
+GITHUB_REPO <- "recipe_box"
+DATA_FILE_PATH <- "recipes.csv"
+
 
 # GitHub API helper functions
 get_github_token <- function() {
-  token <- Sys.getenv("GITHUB_TOKEN")
+  token <- "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"
   if (token == "") {
     stop("GITHUB_TOKEN environment variable not set")
   }

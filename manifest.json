@@ -2161,16 +2161,19 @@
       "checksum": "b06af5d33d63df5ef27741910ed44d4e"
     },
     ".Rprofile": {
-      "checksum": "e5a2d05d618a6ddc10e56db45e9d1088"
+      "checksum": "409775a6b67887b3d47326da58d0ff81"
     },
     ".secrets/c13dc354db9600c8cd9b2bd868d1bf25_thomas.p.nice@gmail.com": {
       "checksum": "274bff9343feb827cffe96aa3fdbe30c"
     },
     "app.R": {
-      "checksum": "76fbd80ee60703378903d17ab4b3a53a"
+      "checksum": "68fa21cdabcf146325b05cc811e7ec24"
     },
     "deploy.R": {
       "checksum": "7c3ff30caef32a4654f2a0127328ef88"
+    },
+    "recipes.csv": {
+      "checksum": "60bd9217cf2d49f5d43eadc3e3475264"
     }
   },
   "users": null
