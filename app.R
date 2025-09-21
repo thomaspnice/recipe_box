@@ -35,7 +35,7 @@ GITHUB_OWNER <- "thomaspnice"
 GITHUB_REPO <- "recipe_box"
 DATA_FILE_PATH <- "recipes.csv"
 
-source(".Renviron")
+#source(".Renviron")
 # GitHub API helper functions
 get_github_token <- function() {
   token <- Sys.getenv("GITHUB_TOKEN")
