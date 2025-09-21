@@ -66,6 +66,7 @@ get_github_file <- function(owner, repo, path, token) {
   content(response)
 }
 
+
 # Update/create file on GitHub
 put_github_file <- function(owner, repo, path, content_data, message, token, sha = NULL) {
   url <- paste0("https://api.github.com/repos/", owner, "/", repo, "/contents/", path)
@@ -766,7 +767,6 @@ server <- function(input, output, session) {
     
     # Build a list of card divs
     lapply(seq_len(nrow(df)), function(i) {
-      items <- split_ing(df$ingredients[i])
       link  <- df$link[i]
       has_link <- !is.na(link) && nzchar(trimws(link))
       

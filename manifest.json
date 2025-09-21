@@ -1287,36 +1287,6 @@
         "Built": "R 4.4.3; ; 2025-03-13 02:49:04 UTC; windows"
       }
     },
-    "pins": {
-      "Source": "CRAN",
-      "Repository": "https://cran.rstudio.com",
-      "description": {
-        "Type": "Package",
-        "Package": "pins",
-        "Title": "Pin, Discover, and Share Resources",
-        "Version": "1.4.0",
-        "Authors@R": "c(\n    person(\"Julia\", \"Silge\", , \"julia.silge@posit.co\", role = c(\"cre\", \"aut\"),\n           comment = c(ORCID = \"0000-0002-3671-836X\")),\n    person(\"Hadley\", \"Wickham\", , \"hadley@posit.co\", role = \"aut\",\n           comment = c(ORCID = \"0000-0003-4757-117X\")),\n    person(\"Javier\", \"Luraschi\", , \"jluraschi@gmail.com\", role = \"aut\"),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"))\n  )",
-        "Description": "Publish data sets, models, and other R objects, making it\n    easy to share them across projects and with your colleagues. You can\n    pin objects to a variety of \"boards\", including local folders (to\n    share on a networked drive or with 'DropBox'), 'Posit Connect',\n    'AWS S3', and more.",
-        "License": "Apache License (>= 2)",
-        "URL": "https://pins.rstudio.com/, https://github.com/rstudio/pins-r",
-        "BugReports": "https://github.com/rstudio/pins-r/issues",
-        "Depends": "R (>= 3.6)",
-        "Imports": "cli, digest, fs, generics, glue, httr, jsonlite, lifecycle,\nmagrittr, purrr (>= 1.0.0), rappdirs, rlang (>= 1.1.0), tibble,\nwhisker, withr (>= 2.4.3), yaml",
-        "Suggests": "archive, arrow, AzureStor, covr, data.table, datasets,\nfilelock, gitcreds, googleCloudStorageR, googledrive, httr2,\nids, knitr, Microsoft365R, mime, mockery, nanoparquet, openssl,\npaws.storage, qs, R.utils, rmarkdown, rsconnect, shiny, sodium,\ntestthat (>= 3.1.7), webfakes (>= 1.2.0), xml2, zip",
-        "VignetteBuilder": "knitr",
-        "Config/Needs/website": "tidyverse/tidytemplate",
-        "Config/testthat/edition": "3",
-        "Encoding": "UTF-8",
-        "RoxygenNote": "7.3.2",
-        "NeedsCompilation": "no",
-        "Packaged": "2024-10-07 15:34:43 UTC; juliasilge",
-        "Author": "Julia Silge [cre, aut] (<https://orcid.org/0000-0002-3671-836X>),\n  Hadley Wickham [aut] (<https://orcid.org/0000-0003-4757-117X>),\n  Javier Luraschi [aut],\n  Posit Software, PBC [cph, fnd]",
-        "Maintainer": "Julia Silge <julia.silge@posit.co>",
-        "Repository": "CRAN",
-        "Date/Publication": "2024-10-07 16:00:03 UTC",
-        "Built": "R 4.4.3; ; 2025-03-17 03:51:48 UTC; windows"
-      }
-    },
     "pkgconfig": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com",
@@ -1422,40 +1392,6 @@
         "Repository": "CRAN",
         "Date/Publication": "2024-11-28 00:40:02 UTC",
         "Built": "R 4.4.3; x86_64-w64-mingw32; 2025-03-17 03:22:42 UTC; windows",
-        "Archs": "x64"
-      }
-    },
-    "purrr": {
-      "Source": "CRAN",
-      "Repository": "https://cran.rstudio.com",
-      "description": {
-        "Package": "purrr",
-        "Title": "Functional Programming Tools",
-        "Version": "1.0.4",
-        "Authors@R": "c(\n    person(\"Hadley\", \"Wickham\", , \"hadley@posit.co\", role = c(\"aut\", \"cre\"),\n           comment = c(ORCID = \"0000-0003-4757-117X\")),\n    person(\"Lionel\", \"Henry\", , \"lionel@posit.co\", role = \"aut\"),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"),\n           comment = c(ROR = \"03wc8by49\"))\n  )",
-        "Description": "A complete and consistent functional programming toolkit for\n    R.",
-        "License": "MIT + file LICENSE",
-        "URL": "https://purrr.tidyverse.org/, https://github.com/tidyverse/purrr",
-        "BugReports": "https://github.com/tidyverse/purrr/issues",
-        "Depends": "R (>= 4.0)",
-        "Imports": "cli (>= 3.6.1), lifecycle (>= 1.0.3), magrittr (>= 1.5.0),\nrlang (>= 1.1.1), vctrs (>= 0.6.3)",
-        "Suggests": "covr, dplyr (>= 0.7.8), httr, knitr, lubridate, rmarkdown,\ntestthat (>= 3.0.0), tibble, tidyselect",
-        "LinkingTo": "cli",
-        "VignetteBuilder": "knitr",
-        "Biarch": "true",
-        "Config/build/compilation-database": "true",
-        "Config/Needs/website": "tidyverse/tidytemplate, tidyr",
-        "Config/testthat/edition": "3",
-        "Config/testthat/parallel": "TRUE",
-        "Encoding": "UTF-8",
-        "RoxygenNote": "7.3.2",
-        "NeedsCompilation": "yes",
-        "Packaged": "2025-01-29 21:33:56 UTC; hadleywickham",
-        "Author": "Hadley Wickham [aut, cre] (<https://orcid.org/0000-0003-4757-117X>),\n  Lionel Henry [aut],\n  Posit Software, PBC [cph, fnd] (03wc8by49)",
-        "Maintainer": "Hadley Wickham <hadley@posit.co>",
-        "Repository": "CRAN",
-        "Date/Publication": "2025-02-05 18:00:01 UTC",
-        "Built": "R 4.4.3; x86_64-w64-mingw32; 2025-03-17 03:39:36 UTC; windows",
         "Archs": "x64"
       }
     },
@@ -2111,29 +2047,6 @@
         "Archs": "x64"
       }
     },
-    "whisker": {
-      "Source": "CRAN",
-      "Repository": "https://cran.rstudio.com",
-      "description": {
-        "Package": "whisker",
-        "Maintainer": "Edwin de Jonge <edwindjonge@gmail.com>",
-        "License": "GPL-3",
-        "Title": "{{mustache}} for R, Logicless Templating",
-        "Type": "Package",
-        "LazyLoad": "yes",
-        "Author": "Edwin de Jonge",
-        "Description": "Implements 'Mustache' logicless templating.",
-        "Version": "0.4.1",
-        "URL": "https://github.com/edwindj/whisker",
-        "Suggests": "markdown",
-        "RoxygenNote": "6.1.1",
-        "NeedsCompilation": "no",
-        "Packaged": "2022-12-05 15:15:55 UTC; hornik",
-        "Repository": "CRAN",
-        "Date/Publication": "2022-12-05 15:33:50 UTC",
-        "Built": "R 4.4.0; ; 2024-05-30 00:28:53 UTC; windows"
-      }
-    },
     "withr": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com",
@@ -2248,55 +2161,16 @@
       "checksum": "b06af5d33d63df5ef27741910ed44d4e"
     },
     ".Rprofile": {
-      "checksum": "a65a3a531f2aff18683ce9ee0b5be820"
+      "checksum": "e5a2d05d618a6ddc10e56db45e9d1088"
     },
     ".secrets/c13dc354db9600c8cd9b2bd868d1bf25_thomas.p.nice@gmail.com": {
       "checksum": "274bff9343feb827cffe96aa3fdbe30c"
     },
     "app.R": {
-      "checksum": "a786b7b9fc4a563daceef5c3392a1741"
-    },
-    "data/recipes/20250821T081909Z-43eb5/data.txt": {
-      "checksum": "9e519ac02476b5a12a401af9cc93bff8"
-    },
-    "data/recipes/20250821T081909Z-43eb5/recipes.csv": {
-      "checksum": "59302bda0543d10a9562cb66c46b6c07"
-    },
-    "data/recipes/20250821T090148Z-acf5e/data.txt": {
-      "checksum": "d28dd5f654cff09ee88d9b18b4533934"
-    },
-    "data/recipes/20250821T090148Z-acf5e/recipes.csv": {
-      "checksum": "e97d81ddc2e346ff56ff98db9a788412"
-    },
-    "data/recipes/20250821T090152Z-43eb5/data.txt": {
-      "checksum": "84d0d82456712618819a300e310c1fef"
-    },
-    "data/recipes/20250821T090152Z-43eb5/recipes.csv": {
-      "checksum": "59302bda0543d10a9562cb66c46b6c07"
-    },
-    "data/recipes/20250821T090837Z-7a7ef/data.txt": {
-      "checksum": "2adb5b8119c32dddbf73d051241294dc"
-    },
-    "data/recipes/20250821T090837Z-7a7ef/recipes.csv": {
-      "checksum": "ef9fdf82827a85b16fbecea91db73270"
-    },
-    "data/recipes/20250821T090845Z-d15ab/data.txt": {
-      "checksum": "c704760b985f987816ab1d9408a53495"
-    },
-    "data/recipes/20250821T090845Z-d15ab/recipes.csv": {
-      "checksum": "c6990a28112542ab2539854bf5e9583c"
-    },
-    "data/recipes/20250821T110236Z-dd0e0/data.txt": {
-      "checksum": "9a2599c39995f7cd375aa250768f0f2f"
-    },
-    "data/recipes/20250821T110236Z-dd0e0/recipes.csv": {
-      "checksum": "efdb5ac691025ce1ff8f523a81e6adac"
+      "checksum": "76fbd80ee60703378903d17ab4b3a53a"
     },
     "deploy.R": {
       "checksum": "7c3ff30caef32a4654f2a0127328ef88"
-    },
-    "recipes.csv": {
-      "checksum": "0837b947b3daf88449455fd05562c9a7"
     }
   },
   "users": null
