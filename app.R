@@ -32,7 +32,7 @@ normalize_recipes_df <- function(df_in) {
 # ------------- Storage via GitHub ----------------
 GITHUB_OWNER <- "thomaspnice" 
 GITHUB_REPO <- "recipe_box"
-DATA_FILE_PATH <- "data/recipes.csv"
+DATA_FILE_PATH <- "recipes.csv"
 
 # GitHub API helper functions
 get_github_token <- function() {
